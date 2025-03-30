@@ -188,6 +188,8 @@ const be_const_member_t lv_gpio_constants[] = {
     { "MS01", (int32_t) GPIO_MS01 },
     { "NEOPOOL_RX", (int32_t) GPIO_NEOPOOL_RX },
     { "NEOPOOL_TX", (int32_t) GPIO_NEOPOOL_TX },
+    { "RS485_RX", (int32_t) GPIO_RS485_RX},
+    { "RS485_TX", (int32_t) GPIO_RS485_TX},
     { "NONE", (int32_t) GPIO_NONE },
     { "NRF24_CS", (int32_t) GPIO_NRF24_CS },
     { "NRF24_DC", (int32_t) GPIO_NRF24_DC },

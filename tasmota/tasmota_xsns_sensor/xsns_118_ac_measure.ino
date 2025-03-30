@@ -56,12 +56,15 @@ struct UNIT_ACMEASURE
   uint8_t count = 0;
   //uint8_t _speed;
 
-  float voltage;
-  float current;
+  float voltage = NAN;
+  float current = NAN;
   //float active_power;
   //float apparent_power;
   //float power_factor;
   //float kWh;
+
+  uint8_t valid = 0;
+  uint32_t _lastRead = 0;
 
 } Unit_ACMeasure;
 
@@ -114,7 +117,7 @@ void readBytes(uint8_t addr, uint8_t reg, uint8_t *buffer, uint8_t length)
 uint16_t getVoltage(void)
 {
   uint8_t data[4];
-  readBytes(UNIT_ACMEASURE_ADDR,UNIT_ACMEASURE_VOLTAGE_REG, data, 2);
+  readBytes(UNIT_ACMEASURE_ADDR, UNIT_ACMEASURE_VOLTAGE_REG, data, 2);
   uint16_t value = data[0] | (data[1] << 8);
   return value;
 }
@@ -296,12 +299,38 @@ uint8_t getFirmwareVersion(void)
 }
 
 
-void ACMeasureReadData()
+bool ACMeasureReadData()
 {
-  float voltage_read = getVoltage();
-  float current_read = getCurrent();
-  Unit_ACMeasure.voltage = voltage_read;
-  Unit_ACMeasure.current = current_read;
+  if(Unit_ACMeasure.valid)
+  {
+    Unit_ACMeasure.valid--;
+  }
+
+  if(millis() - Unit_ACMeasure._lastRead < 1000) return false;
+
+  Unit_ACMeasure.valid = SENSOR_MAX_MISS;
+
+  uint16_t voltage_read = getVoltage();
+  uint16_t current_read = getCurrent();
+  Unit_ACMeasure.voltage = (static_cast<float>(voltage_read))/100.0;
+  Unit_ACMeasure.current = (static_cast<float>(current_read))/100.0;
+
+
+  char text_response[50];
+  snprintf_P(text_response, sizeof(text_response), PSTR("Voltage : %.2f, Current: %.2f"), Unit_ACMeasure.voltage, Unit_ACMeasure.current);
+
+  AddLog(LOG_LEVEL_INFO,text_response);
+
+  if(isnan(Unit_ACMeasure.voltage) || isnan(Unit_ACMeasure.current)) return false;
+
+
+  char logVoltage[7];
+  getVoltageString(logVoltage);
+
+  AddLog(LOG_LEVEL_INFO, PSTR(logVoltage));
+
+  Unit_ACMeasure._lastRead = millis();
+  return true;
 }
 
 bool ACMeasureisConnected()
@@ -348,7 +377,7 @@ void ACMeasureShow(bool json)
   if(json)
   {
     AdcShowContinuation(&jsconflg);
-    ResponseAppend_P(PSTR("\"AC Measure\":{\"" D_JSON_VOLTAGE "\":%s,\"" D_JSON_CURRENT "\":%s}"),voltage_chr, current_chr);
+    ResponseAppend_P(PSTR("\"AC Measure\":{\"" D_JSON_VOLTAGE "\":%f,\"" D_JSON_CURRENT "\":%f}"),Unit_ACMeasure.voltage, Unit_ACMeasure.current);
   }
 #ifdef USE_WEBSERVER
   else
@@ -360,6 +389,17 @@ void ACMeasureShow(bool json)
 
   if(jsconflg){
     ResponseJsonEnd();
+  }
+}
+
+void ACMeasureEverySecond(void)
+{
+  if(TasmotaGlobal.uptime & 1)
+  {
+    if(ACMeasureReadData())
+    {
+      AddLogMissed(Unit_ACMeasure.name, Unit_ACMeasure.valid);
+    }
   }
 }
 
@@ -381,7 +421,9 @@ bool Xsns118(uint32_t function)
     switch(function)
     {
       case FUNC_EVERY_SECOND:
-        ACMeasureReadData();
+      ACMeasureEverySecond();
+        //ACMeasureReadData();
+        //AddLog(LOG_LEVEL_INFO, PSTR("AC MEASURE READ DATA"));
         break;
       case FUNC_JSON_APPEND:
         ACMeasureShow(1);
