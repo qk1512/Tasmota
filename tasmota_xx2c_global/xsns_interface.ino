@@ -1057,7 +1057,15 @@ const uint8_t kXsnsList[] = {
 #endif
 
 #ifdef XSNS_128
-  XSNS_128
+  XSNS_128,
+#endif
+
+#ifdef XSNS_129
+  XSNS_129,
+#endif
+
+#ifdef XSNS_130
+  XSNS_130,
 #endif
 };
 

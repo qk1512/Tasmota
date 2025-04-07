@@ -627,6 +627,8 @@
 #endif // USE_RS485
 
 
+#define USE_LORA_UART
+
 // -- I2C sensors ---------------------------------
 #define USE_I2C                                  // I2C using library wire (+10k code, 0k2 mem, 124 iram)
 #define I2CDRIVERS_0_31        0xFFFFFFFF          // Enable I2CDriver0  to I2CDriver31
