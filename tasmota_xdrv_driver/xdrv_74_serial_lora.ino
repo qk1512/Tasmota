@@ -1,7 +1,7 @@
 #ifdef USE_LORA_UART
 #define XDRV_74 74
 
-#include "LoRa_E32.h"
+#include "LoRa_E22.h"
 #include "HardwareSerial.h"
 
 struct LoraSerial_t
@@ -9,7 +9,7 @@ struct LoraSerial_t
     bool active = false;
     byte tx = 0;
     byte rx = 0;
-    LoRa_E32 *LoraSerial = nullptr;
+    LoRa_E22 *LoraSerial = nullptr;
 }LoraSerial;
 
 HardwareSerial *mySerial = nullptr;
@@ -37,9 +37,9 @@ void LoraSerialInit(void)
 
     if(LoraSerial.active)
     {
-        mySerial = new HardwareSerial(1); // Use UART1
-        //mySerial->begin(9600, SERIAL_8N1, LoraSerial.tx, LoraSerial.rx);
-        LoraSerial.LoraSerial = new LoRa_E32(LoraSerial.tx, LoraSerial.rx, mySerial, UART_BPS_RATE_9600, SERIAL_8N1);
+        mySerial = new HardwareSerial(2); // Use UART1
+        mySerial->begin(9600, SERIAL_8N1, LoraSerial.tx, LoraSerial.rx);
+        LoraSerial.LoraSerial = new LoRa_E22(LoraSerial.tx, LoraSerial.rx, mySerial, UART_BPS_RATE_9600, SERIAL_8N1);
         ResponseStatus rs;
         bool check = LoraSerial.LoraSerial->begin();
 
@@ -62,21 +62,12 @@ void LoraSerialInit(void)
 }
 
 #define D_CMND_SEND_LORA_SERIAL "SendLora"
-#define D_CMND_SEND_LORA_SERIAL_TELEMETRY "SendLoraSerialTelemetry"
-#define D_CMND_SEND_LORA_SERIAL_ATTRIBUTE "SendLoraSerialAttribute"
-#define D_CMND_LORA_SERIAL_BEGIN "BeginLora"
 
 const char kLoraSerialCommands[] PROGMEM = "|"
-    D_CMND_SEND_LORA_SERIAL "|"
-    D_CMND_SEND_LORA_SERIAL_TELEMETRY "|"
-    D_CMND_SEND_LORA_SERIAL_ATTRIBUTE "|"
-    D_CMND_LORA_SERIAL_BEGIN;
+    D_CMND_SEND_LORA_SERIAL;;
 
 void (* const LoraSerialCommand[])(void) PROGMEM = {
-    &CmndSendLora,
-    &CmndSendLoraSerialTelemetry,
-    &CmndSendLoraSerialAttribute,
-    &CmndBeginLora
+    &CmndSendLora
 };
 
 void CmndSendLora(void)
@@ -94,42 +85,6 @@ void CmndSendLora(void)
     ResponseCmndDone();
 }
 
-void CmndSendLoraSerialTelemetry(void)
-{
-    if (XdrvMailbox.data_len == 0)
-    {
-        AddLog(LOG_LEVEL_INFO, PSTR("No data to transmit"));
-        ResponseCmndDone();
-        return;
-    }
-
-    // Encode bằng Nanopb
-    uint8_t buffer[256]; // Giá trị tối đa Lora E32 có thể gửi
-    // Gửi qua LoRa
-    ResponseStatus rs = LoraSerial.LoraSerial -> sendMessage(buffer,sizeof(buffer));
-    AddLog(LOG_LEVEL_INFO, PSTR("LoRa Send: %s"), rs.getResponseDescription().c_str());
-
-    // Debug log JSON gốc nếu cần
-    AddLog(LOG_LEVEL_INFO, PSTR("Lora JSON: %s"), XdrvMailbox.data);
-
-    ResponseCmndDone();
-}
-
-void CmndSendLoraSerialAttribute(void)
-{
-    return;
-}
-
-void CmndBeginLora(void)
-{
-    return;
-}
-
-void processRpcCommand(const char *jsonMessage)
-{
-    return;
-}
-
 void LoraSerialProcessing()
 {
     if(!LoraSerial.active) return;
@@ -144,12 +99,6 @@ void LoraSerialProcessing()
 
         }
     }
-}
-
-void LoraSerialSendData(const char* message)
-{
-    ResponseStatus rs = LoraSerial.LoraSerial -> sendMessage(message);
-    AddLog(LOG_LEVEL_INFO, PSTR("Send Data to Other Lora"));
 }
 
 bool Xdrv74(uint32_t function)
